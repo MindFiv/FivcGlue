@@ -36,12 +36,14 @@ Example:
 """
 
 __all__ = [
+    "__version__",
     "IComponent",
     "IComponentSite",
     "IComponentSiteBuilder",
     "utils",
 ]
 
+from .__about__ import __version__  # noqa
 from .interfaces import (  # noqa
     IComponent,
     IComponentSite,

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fivcglue"
-version = "0.1.1"
+dynamic = ["version"]
 description = "A Domain-Driven Design (DDD) programming package for Python, similar to zope.interface"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -43,6 +43,9 @@ Source = "https://github.com/5C-Plus/fivcglue"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "fivcglue.__about__.__version__"}
 
 [tool.coverage.run]
 source_pkgs = ["fivcglue", "tests"]
