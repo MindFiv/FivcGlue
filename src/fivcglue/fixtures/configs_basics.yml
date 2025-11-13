@@ -12,9 +12,9 @@
 
 - entries:
     - interface: fivcglue.interfaces.loggers.ILoggerSite
-      name: 'Default'
+      name: 'Builtin'
 
-  class: fivcglue.implements.loggers_default.LoggerSiteImpl
+  class: fivcglue.implements.loggers_builtin.LoggerSiteImpl
 
 - entries:
     - interface: fivcglue.interfaces.caches.ICache

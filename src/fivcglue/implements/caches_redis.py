@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fivc.core import IComponentSite, utils
-from fivc.core.interfaces import caches
+from fivcglue import IComponentSite, utils
+from fivcglue.interfaces import caches
 
 if TYPE_CHECKING:
     from datetime import timedelta

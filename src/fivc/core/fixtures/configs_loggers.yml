@@ -1,5 +1,0 @@
-- entries:
-    - interface: fivc.core.interfaces.loggers.ILoggerSite
-      name: 'Builtin'
-
-  class: fivc.core.implements.loggers_builtin.LoggerSiteImpl

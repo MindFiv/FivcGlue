@@ -1,0 +1,5 @@
+- entries:
+    - interface: fivcglue.interfaces.loggers.ILoggerSite
+      name: 'Builtin'
+
+  class: fivcglue.implements.loggers_builtin.LoggerSiteImpl

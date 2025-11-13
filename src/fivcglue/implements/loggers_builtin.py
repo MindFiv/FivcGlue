@@ -3,8 +3,8 @@ from __future__ import annotations
 from logging import Logger, getLogger
 from traceback import format_exc
 
-from fivc.core import IComponentSite, utils
-from fivc.core.interfaces import loggers
+from fivcglue import IComponentSite, utils
+from fivcglue.interfaces import loggers
 
 
 @utils.implements(loggers.ILogger)

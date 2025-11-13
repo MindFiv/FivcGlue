@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import os
 
-from fivc.core import IComponentSite, utils
-from fivc.core.interfaces import configs
+from fivcglue import IComponentSite, utils
+from fivcglue.interfaces import configs
 
 
 @utils.implements(configs.IConfigSession)

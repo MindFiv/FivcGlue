@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 
-from fivc.core import IComponent
+from fivcglue import IComponent
 
 
 class IConfigSession(IComponent):
