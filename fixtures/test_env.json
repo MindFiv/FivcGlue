@@ -1,5 +1,8 @@
 {
   "test": {
-    "key1": "haha"
-  }
+    "key1": "haha",
+    "key2": "value2",
+    "key3": "value3"
+  },
+  "empty": {}
 }

@@ -41,6 +41,25 @@ class ConfigSessionImpl(configs.IConfigSession):
         """
         self.kwargs = kwargs
 
+    def list_keys(self) -> list[str]:
+        """List all configuration keys available in this session.
+
+        Returns all configuration key names present in the session, allowing
+        you to discover what configuration values are available without
+        needing to know the keys in advance.
+
+        Returns:
+            A list of all configuration key names in the session. Returns an
+            empty list if the session contains no configuration keys.
+
+        Example:
+            >>> session = ConfigSessionImpl(host="localhost", port="5432")
+            >>> keys = session.list_keys()
+            >>> print(keys)
+            ['host', 'port']
+        """
+        return list(self.kwargs.keys())
+
     def get_value(self, key_name: str) -> str | None:
         """Retrieve a configuration value by key name.
 

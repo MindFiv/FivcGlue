@@ -33,10 +33,30 @@ class IConfigSession(IComponent):
     """
 
     @abstractmethod
-    def get_value(
-        self,
-        key_name: str,
-    ) -> str | None:
+    def list_keys(self) -> list[str]:
+        """List all configuration keys available in this session.
+
+        Returns all configuration key names present in the session, allowing
+        you to discover what configuration values are available without
+        needing to know the keys in advance.
+
+        Returns:
+            A list of all configuration key names in the session. Returns an
+            empty list if the session contains no configuration keys.
+
+        Example:
+            >>> config = JSONConfigImpl(_component_site=None)
+            >>> session = config.get_session("database")
+            >>> keys = session.list_keys()
+            >>> print(keys)
+            ['host', 'port', 'username', 'password']
+            >>> for key in keys:
+            ...     value = session.get_value(key)
+            ...     print(f"{key}: {value}")
+        """
+
+    @abstractmethod
+    def get_value(self, key_name: str) -> str | None:
         """Retrieve a configuration value by key name.
 
         Args:
@@ -65,10 +85,7 @@ class IConfig(IComponent):
     """
 
     @abstractmethod
-    def get_session(
-        self,
-        session_name: str,
-    ) -> IConfigSession | None:
+    def get_session(self, session_name: str) -> IConfigSession | None:
         """Retrieve a configuration session by name.
 
         Args:
