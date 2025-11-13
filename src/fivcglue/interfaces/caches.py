@@ -1,3 +1,10 @@
+"""Cache interface for key-value storage with expiration support.
+
+This module defines the ICache interface for implementing cache services.
+Cache implementations can be in-memory, Redis-based, or any other storage backend.
+All cached values must have an expiration time to prevent unbounded growth.
+"""
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -10,8 +17,24 @@ if TYPE_CHECKING:
 
 
 class ICache(IComponent):
-    """
-    cache service
+    """Interface for cache services with key-value storage and expiration.
+
+    ICache provides a simple key-value storage interface where all values
+    must have an expiration time. Values are stored as bytes to support
+    any serializable data type.
+
+    Implementations should:
+    - Support automatic expiration of cached values
+    - Handle concurrent access safely (if applicable)
+    - Return None for missing or expired keys
+
+    Example:
+        >>> from datetime import timedelta
+        >>> cache = MemoryCacheImpl(_component_site=None)
+        >>> cache.set_value("user:123", b"John Doe", expire=timedelta(hours=1))
+        True
+        >>> cache.get_value("user:123")
+        b'John Doe'
     """
 
     @abstractmethod
@@ -19,8 +42,16 @@ class ICache(IComponent):
         self,
         key_name: str,
     ) -> bytes | None:
-        """
-        get value by key name
+        """Retrieve a value from the cache by key name.
+
+        Returns the cached value if it exists and has not expired.
+        Expired entries should be automatically removed when accessed.
+
+        Args:
+            key_name: The cache key to retrieve.
+
+        Returns:
+            The cached value as bytes if found and not expired, None otherwise.
         """
 
     @abstractmethod
@@ -28,8 +59,20 @@ class ICache(IComponent):
         self,
         key_name: str,
         value: bytes | None,
-        expire: timedelta,  # always set expire time
+        expire: timedelta,
     ) -> bool:
-        """
-        set value
+        """Store a value in the cache with an expiration time.
+
+        All cached values must have an expiration time to prevent unbounded
+        cache growth. The value will be automatically removed after the
+        expiration time has elapsed.
+
+        Args:
+            key_name: The cache key to store the value under.
+            value: The value to cache as bytes, or None to cache a null value.
+            expire: Time duration until the cached value expires.
+                Must be a positive timedelta.
+
+        Returns:
+            True if the value was successfully cached, False otherwise.
         """

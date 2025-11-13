@@ -22,11 +22,6 @@ class MockMutex(IMutex):
         self.released = True
         return True
 
-    def query_component(self, interface: type, name: str = "") -> IComponent | None:
-        if interface == IMutex:
-            return self
-        return None
-
 
 class MockMutexSite(IMutexSite):
     """Mock implementation of IMutexSite for testing"""
@@ -39,11 +34,6 @@ class MockMutexSite(IMutexSite):
         if mtx_name not in self.mutexes:
             self.mutexes[mtx_name] = MockMutex()
         return self.mutexes[mtx_name]
-
-    def query_component(self, interface: type, name: str = "") -> IComponent | None:
-        if interface == IMutexSite:
-            return self
-        return None
 
 
 class TestIMutex(unittest.TestCase):
@@ -99,16 +89,6 @@ class TestIMutex(unittest.TestCase):
         assert release_result is True
         assert self.mutex.released is True
 
-    def test_query_component_mutex(self):
-        """Test querying for IMutex interface"""
-        result = self.mutex.query_component(IMutex)
-        assert result == self.mutex
-
-    def test_query_component_other_interface(self):
-        """Test querying for other interface returns None"""
-        result = self.mutex.query_component(IMutexSite)
-        assert result is None
-
 
 class TestIMutexSite(unittest.TestCase):
     def setUp(self):
@@ -147,16 +127,6 @@ class TestIMutexSite(unittest.TestCase):
 
         assert mutex is not None
         assert isinstance(mutex, IMutex)
-
-    def test_query_component_mutex_site(self):
-        """Test querying for IMutexSite interface"""
-        result = self.mutex_site.query_component(IMutexSite)
-        assert result == self.mutex_site
-
-    def test_query_component_other_interface(self):
-        """Test querying for other interface returns None"""
-        result = self.mutex_site.query_component(IMutex)
-        assert result is None
 
 
 class TestMutexIntegration(unittest.TestCase):

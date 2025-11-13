@@ -16,6 +16,24 @@ Welcome to the FivcGlue documentation. This directory contains detailed document
   - Optional dependencies
   - Development dependencies
 
+### Migration & Implementation Guides
+
+- **[MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)** - Migration guide from @implements decorator to direct inheritance
+  - Overview of changes
+  - Step-by-step migration instructions
+  - Benefits and rationale
+
+- **[REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)** - Summary of the refactoring process
+  - Changes made to implementation classes
+  - Testing and validation
+  - Impact analysis
+
+- **[REDIS_CACHE_IMPLEMENTATION.md](REDIS_CACHE_IMPLEMENTATION.md)** - Redis cache implementation details
+  - Features and capabilities
+  - Usage examples
+  - Configuration options
+  - Troubleshooting guide
+
 ## 🎯 Quick Links
 
 - [Main README](../README.md) - Project overview and quick start
@@ -29,6 +47,8 @@ If you're new to FivcGlue, we recommend reading the documentation in this order:
 1. Start with the [main README](../README.md) for an overview
 2. Review [ARCHITECTURE.md](ARCHITECTURE.md) to understand the design
 3. Check [DEPENDENCIES.md](DEPENDENCIES.md) for installation details
+4. If migrating from older versions, see [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)
+5. For Redis cache usage, refer to [REDIS_CACHE_IMPLEMENTATION.md](REDIS_CACHE_IMPLEMENTATION.md)
 
 ## 🤝 Contributing to Documentation
 

@@ -10,10 +10,7 @@ from fivcglue.interfaces import configs
 class MockComponent(IComponent):
     """Mock component for testing"""
 
-    def query_component(self, interface: type, name: str = "") -> IComponent | None:
-        if interface == IComponent:
-            return self
-        return None
+    pass
 
 
 class TestComponentSite(unittest.TestCase):

@@ -13,10 +13,7 @@ from fivcglue.interfaces.utils import (
 class MockComponent(IComponent):
     """Mock component for testing"""
 
-    def query_component(self, interface: type, name: str = "") -> IComponent | None:
-        if interface == IComponent:
-            return self
-        return None
+    pass
 
 
 class IMockInterface(IComponent):
@@ -82,21 +79,6 @@ class TestImplementsDecorator(unittest.TestCase):
 
         instance = TestClass()
         assert isinstance(instance, IComponent)
-
-        # Test query_component method
-        result = instance.query_component(IComponent)
-        assert result == instance
-
-    def test_implements_single_interface_query_wrong_type(self):
-        """Test query_component returns None for wrong interface"""
-
-        @implements(IComponent)
-        class TestClass:
-            pass
-
-        instance = TestClass()
-        result = instance.query_component(IMockInterface)
-        assert result is None
 
     def test_implements_multiple_interfaces(self):
         """Test @implements decorator with multiple interfaces"""

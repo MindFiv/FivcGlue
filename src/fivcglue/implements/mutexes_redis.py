@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from fivcglue import IComponentSite, utils
+from fivcglue import IComponentSite
 from fivcglue.interfaces import mutexes
 
 if TYPE_CHECKING:
     from datetime import timedelta
 
 
-@utils.implements(mutexes.IMutex)
-class MutexImpl:
+class MutexImpl(mutexes.IMutex):
     """
     Redis-based distributed mutex implementation.
 
@@ -102,8 +101,7 @@ class MutexImpl:
             return False
 
 
-@utils.implements(mutexes.IMutexSite)
-class MutexSiteImpl:
+class MutexSiteImpl(mutexes.IMutexSite):
     """
     Redis-based mutex site for managing distributed mutexes.
 
@@ -179,6 +177,6 @@ class MutexSiteImpl:
             print(f"Warning: Cannot create mutex '{mtx_name}' - Redis not connected")  # noqa
             return None
 
-        # The @utils.implements decorator makes MutexImpl a subclass of IMutex at runtime
-        # Use cast() to inform type checkers that MutexImpl is compatible with IMutex
+        # MutexImpl inherits from IMutex, so it's already compatible
+        # Use cast() to inform type checkers about the return type
         return cast(mutexes.IMutex, MutexImpl(self.redis_client, mtx_name))

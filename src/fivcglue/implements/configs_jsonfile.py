@@ -1,28 +1,96 @@
+"""JSON file-based configuration implementation.
+
+This module provides configuration management using JSON files.
+Configuration is loaded from a JSON file specified by the CONFIG_JSON
+environment variable (defaults to ".env.json").
+
+The JSON file should have the following structure:
+{
+    "session_name": {
+        "key1": "value1",
+        "key2": "value2"
+    }
+}
+"""
+
 from __future__ import annotations
 
 import json
 import os
 
-from fivcglue import IComponentSite, utils
+from fivcglue import IComponentSite
 from fivcglue.interfaces import configs
 
 
-@utils.implements(configs.IConfigSession)
-class ConfigSessionImp:
+class ConfigSessionImp(configs.IConfigSession):
+    """JSON-based configuration session implementation.
+
+    Represents a named group of configuration key-value pairs loaded
+    from a JSON file. All values are stored and returned as strings.
+
+    Args:
+        **kwargs: Configuration key-value pairs for this session.
+
+    Example:
+        >>> session = ConfigSessionImp(host="localhost", port="5432")
+        >>> session.get_value("host")
+        'localhost'
+    """
+
     def __init__(self, **kwargs):
+        """Initialize configuration session with key-value pairs.
+
+        Args:
+            **kwargs: Configuration key-value pairs.
+        """
         self.kwargs = kwargs
 
     def get_value(self, key_name: str) -> str | None:
+        """Retrieve a configuration value by key name.
+
+        Args:
+            key_name: The configuration key to look up.
+
+        Returns:
+            The configuration value as a string if found, None otherwise.
+        """
         return self.kwargs.get(key_name)
 
 
-@utils.implements(configs.IConfig)
-class ConfigImpl:
-    """
-    implement config
+class ConfigImpl(configs.IConfig):
+    """JSON file-based configuration implementation.
+
+    Loads configuration from a JSON file and provides access to named
+    configuration sessions. The JSON file path is determined by the
+    CONFIG_JSON environment variable (defaults to ".env.json").
+
+    If the file is not found or contains invalid JSON, an empty
+    configuration is used instead.
+
+    Args:
+        _component_site: Component site instance (required by component system).
+        **_kwargs: Additional parameters (ignored).
+
+    Example:
+        >>> # With CONFIG_JSON=config.json containing:
+        >>> # {"database": {"host": "localhost", "port": "5432"}}
+        >>> config = ConfigImpl(_component_site=site)
+        >>> db_session = config.get_session("database")
+        >>> db_session.get_value("host")
+        'localhost'
     """
 
     def __init__(self, _component_site: IComponentSite, **_kwargs):
+        """Initialize configuration from JSON file.
+
+        Loads configuration from the file specified by CONFIG_JSON environment
+        variable. If the file is not found or contains invalid JSON, initializes
+        with an empty configuration.
+
+        Args:
+            _component_site: Component site instance (required by component system).
+            **_kwargs: Additional parameters (ignored).
+        """
         print("create config component of json file")  # noqa
         try:
             filename = os.environ.setdefault("CONFIG_JSON", ".env.json")
@@ -32,6 +100,16 @@ class ConfigImpl:
             self.sessions = {}
 
     def get_session(self, name: str) -> ConfigSessionImp:
+        """Retrieve a configuration session by name.
+
+        Args:
+            name: The name of the configuration session to retrieve.
+
+        Returns:
+            A configuration session containing the key-value pairs for the
+            specified session name. Returns an empty session if the name
+            is not found.
+        """
         kwargs = self.sessions.get(name)
         kwargs = kwargs if isinstance(kwargs, dict) else {}
         return ConfigSessionImp(**kwargs)

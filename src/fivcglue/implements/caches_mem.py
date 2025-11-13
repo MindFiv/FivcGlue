@@ -4,15 +4,14 @@ import threading
 import time
 from typing import TYPE_CHECKING
 
-from fivcglue import IComponentSite, utils
+from fivcglue import IComponentSite
 from fivcglue.interfaces import caches
 
 if TYPE_CHECKING:
     from datetime import timedelta
 
 
-@utils.implements(caches.ICache)
-class CacheImpl:
+class CacheImpl(caches.ICache):
     """
     Thread-safe in-memory cache implementation with automatic expiration.
 
