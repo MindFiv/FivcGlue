@@ -66,6 +66,29 @@ class IConfigSession(IComponent):
             The configuration value as a string if found, None otherwise.
         """
 
+    @abstractmethod
+    def set_value(self, key_name: str, value: str) -> bool:
+        """Set a configuration value by key name.
+
+        Args:
+            key_name: The configuration key to set.
+            value: The value to set.
+
+        Returns:
+            True if the value was set successfully, False otherwise.
+        """
+
+    @abstractmethod
+    def delete_value(self, key_name: str) -> bool:
+        """Delete a configuration value by key name.
+
+        Args:
+            key_name: The configuration key to delete.
+
+        Returns:
+            True if the value was deleted successfully, False otherwise.
+        """
+
 
 class IConfig(IComponent):
     """Interface for configuration management with named sessions.

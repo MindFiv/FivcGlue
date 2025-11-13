@@ -75,6 +75,50 @@ class ConfigSessionImp(configs.IConfigSession):
         """
         return self.kwargs.get(key_name)
 
+    def set_value(self, key_name: str, value: str) -> bool:
+        """Set a configuration value by key name.
+
+        Args:
+            key_name: The configuration key to set.
+            value: The value to set.
+
+        Returns:
+            True if the value was set successfully, False otherwise.
+
+        Example:
+            >>> session = ConfigSessionImp(host="localhost")
+            >>> session.set_value("port", "5432")
+            True
+            >>> session.get_value("port")
+            '5432'
+        """
+        self.kwargs[key_name] = value
+        return True
+
+    def delete_value(self, key_name: str) -> bool:
+        """Delete a configuration value by key name.
+
+        Args:
+            key_name: The configuration key to delete.
+
+        Returns:
+            True if the value was deleted successfully, False if the key
+            does not exist.
+
+        Example:
+            >>> session = ConfigSessionImp(host="localhost", port="5432")
+            >>> session.delete_value("port")
+            True
+            >>> session.get_value("port")
+            None
+            >>> session.delete_value("nonexistent")
+            False
+        """
+        if key_name in self.kwargs:
+            del self.kwargs[key_name]
+            return True
+        return False
+
 
 class ConfigImpl(configs.IConfig):
     """JSON file-based configuration implementation.
