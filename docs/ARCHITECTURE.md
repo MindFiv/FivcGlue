@@ -66,18 +66,20 @@ The interfaces layer defines contracts for all components. This follows the **De
 Concrete implementations of the interfaces. Each implementation can be swapped without affecting client code.
 
 **Configuration Implementations:**
-- `JSONFileConfig`: File-based JSON configuration
-- `YAMLFileConfig`: File-based YAML configuration (requires PyYAML)
+- `ConfigImpl` (configs_jsonfile.py): File-based JSON configuration
+- `ConfigImpl` (configs_yamlfile.py): File-based YAML configuration (requires PyYAML)
 
 **Cache Implementations:**
-- `MemoryCache`: Simple in-memory cache with TTL support
-- `RedisCache`: Distributed cache using Redis
+- `CacheImpl` (caches_mem.py): Thread-safe in-memory cache with automatic expiration
+- `CacheImpl` (caches_redis.py): Distributed cache using Redis
 
 **Logger Implementations:**
-- `BuiltinLogger`: Wrapper around Python's built-in logging
+- `LoggerImpl` (loggers_builtin.py): Wrapper around Python's built-in logging
+- `LoggerSiteImpl` (loggers_builtin.py): Factory for creating logger instances
 
 **Mutex Implementations:**
-- `RedisMutex`: Distributed locks using Redis
+- `MutexImpl` (mutexes_redis.py): Distributed locks using Redis
+- `MutexSiteImpl` (mutexes_redis.py): Factory for creating mutex instances
 
 
 
@@ -102,8 +104,13 @@ def process_data(cache: ICache, config: IConfig):
     cache.set("result", value)
 
 # Usage with different implementations
-process_data(MemoryCache(), JSONFileConfig("config.json"))
-process_data(RedisCache(), YAMLFileConfig("config.yml"))
+from fivcglue.implements.caches_mem import CacheImpl as MemoryCacheImpl
+from fivcglue.implements.caches_redis import CacheImpl as RedisCacheImpl
+from fivcglue.implements.configs_jsonfile import ConfigImpl as JSONConfigImpl
+from fivcglue.implements.configs_yamlfile import ConfigImpl as YAMLConfigImpl
+
+process_data(MemoryCacheImpl(_component_site=None), JSONConfigImpl(_component_site=None, file_path="config.json"))
+process_data(RedisCacheImpl(_component_site=None), YAMLConfigImpl(_component_site=None, file_path="config.yml"))
 ```
 
 ### 3. Factory Pattern
@@ -111,11 +118,14 @@ process_data(RedisCache(), YAMLFileConfig("config.yml"))
 Create instances through factory functions or classes:
 
 ```python
+from fivcglue.implements.caches_mem import CacheImpl as MemoryCacheImpl
+from fivcglue.implements.caches_redis import CacheImpl as RedisCacheImpl
+
 def create_cache(cache_type: str, **kwargs) -> ICache:
     if cache_type == "memory":
-        return MemoryCache(**kwargs)
+        return MemoryCacheImpl(_component_site=None, **kwargs)
     elif cache_type == "redis":
-        return RedisCache(**kwargs)
+        return RedisCacheImpl(_component_site=None, **kwargs)
     raise ValueError(f"Unknown cache type: {cache_type}")
 ```
 
@@ -171,8 +181,9 @@ __all__ = ["S3Storage"]
 def process(cache: ICache):
     pass
 
-# Avoid
-def process(cache: MemoryCache):
+# Avoid - don't depend on concrete implementations
+from fivcglue.implements.caches_mem import CacheImpl
+def process(cache: CacheImpl):  # Too specific!
     pass
 ```
 
@@ -207,10 +218,13 @@ Each implementation should focus on one thing and do it well.
 Test each implementation independently:
 
 ```python
+from datetime import timedelta
+from fivcglue.implements.caches_mem import CacheImpl
+
 def test_memory_cache():
-    cache = MemoryCache()
-    cache.set("key", "value")
-    assert cache.get("key") == "value"
+    cache = CacheImpl(_component_site=None)
+    cache.set_value("key", b"value", expire=timedelta(hours=1))
+    assert cache.get_value("key") == b"value"
 ```
 
 ### Integration Tests
@@ -218,9 +232,12 @@ def test_memory_cache():
 Test components working together:
 
 ```python
+from fivcglue.implements.configs_jsonfile import ConfigImpl as JSONConfigImpl
+from fivcglue.implements.caches_mem import CacheImpl
+
 def test_config_with_cache():
-    config = JSONFileConfig("test.json")
-    cache = MemoryCache()
+    config = JSONConfigImpl(_component_site=None, file_path="test.json")
+    cache = CacheImpl(_component_site=None)
     # Test integration
 ```
 
@@ -229,10 +246,13 @@ def test_config_with_cache():
 Ensure all implementations follow the interface contract:
 
 ```python
+from fivcglue.implements.caches_mem import CacheImpl as MemoryCacheImpl
+from fivcglue.implements.caches_redis import CacheImpl as RedisCacheImpl
+
 def test_cache_interface_compliance():
-    for cache_impl in [MemoryCache(), RedisCache()]:
-        assert hasattr(cache_impl, "get")
-        assert hasattr(cache_impl, "set")
+    for cache_impl in [MemoryCacheImpl(_component_site=None), RedisCacheImpl(_component_site=None)]:
+        assert hasattr(cache_impl, "get_value")
+        assert hasattr(cache_impl, "set_value")
         # Test interface methods
 ```
 

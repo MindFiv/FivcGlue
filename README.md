@@ -76,16 +76,18 @@ yaml_config = YAMLFileConfig("settings.yml")
 ### Caching
 
 ```python
-from fivcglue.implements import MemoryCache, RedisCache
+from datetime import timedelta
+from fivcglue.implements.caches_mem import CacheImpl as MemoryCacheImpl
+from fivcglue.implements.caches_redis import CacheImpl as RedisCacheImpl
 
 # In-memory cache
-cache = MemoryCache()
-cache.set("key", "value", ttl=3600)
-value = cache.get("key")
+cache = MemoryCacheImpl(_component_site=None, max_size=10000)
+cache.set_value("key", b"value", expire=timedelta(hours=1))
+value = cache.get_value("key")
 
-# Redis cache
-redis_cache = RedisCache(host="localhost", port=6379)
-redis_cache.set("key", "value", ttl=3600)
+# Redis cache (requires redis package)
+redis_cache = RedisCacheImpl(_component_site=None, host="localhost", port=6379)
+redis_cache.set_value("key", b"value", expire=timedelta(hours=1))
 ```
 
 ## 📁 Project Structure
