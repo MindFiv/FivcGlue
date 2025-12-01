@@ -56,7 +56,7 @@ class TestRedisCacheErrorHandling(unittest.TestCase):
         mock_redis_module.Redis.return_value = mock_redis_client
         mock_redis_client.ping.return_value = True
 
-        with patch.dict('sys.modules', {'redis': mock_redis_module}):
+        with patch.dict("sys.modules", {"redis": mock_redis_module}):
             cache = RedisCacheImpl(self.component_site)
 
             # Test with zero expiration
@@ -75,7 +75,7 @@ class TestRedisCacheErrorHandling(unittest.TestCase):
         mock_redis_client.ping.return_value = True
         mock_redis_client.setex.return_value = True
 
-        with patch.dict('sys.modules', {'redis': mock_redis_module}):
+        with patch.dict("sys.modules", {"redis": mock_redis_module}):
             cache = RedisCacheImpl(self.component_site)
 
             # set_value with None should store empty bytes
@@ -93,7 +93,7 @@ class TestRedisCacheErrorHandling(unittest.TestCase):
         mock_redis_client.ping.return_value = True
         mock_redis_client.get.side_effect = Exception("Redis error")
 
-        with patch.dict('sys.modules', {'redis': mock_redis_module}):
+        with patch.dict("sys.modules", {"redis": mock_redis_module}):
             cache = RedisCacheImpl(self.component_site)
 
             # Should return None instead of raising
@@ -108,7 +108,7 @@ class TestRedisCacheErrorHandling(unittest.TestCase):
         mock_redis_client.ping.return_value = True
         mock_redis_client.setex.side_effect = Exception("Redis error")
 
-        with patch.dict('sys.modules', {'redis': mock_redis_module}):
+        with patch.dict("sys.modules", {"redis": mock_redis_module}):
             cache = RedisCacheImpl(self.component_site)
 
             # Should return False instead of raising
@@ -122,7 +122,7 @@ class TestRedisCacheErrorHandling(unittest.TestCase):
         mock_redis_module.Redis.return_value = mock_redis_client
         mock_redis_client.ping.side_effect = Exception("Connection refused")
 
-        with patch.dict('sys.modules', {'redis': mock_redis_module}):
+        with patch.dict("sys.modules", {"redis": mock_redis_module}):
             cache = RedisCacheImpl(self.component_site)
 
             # Should not be connected

@@ -41,6 +41,9 @@ __all__ = [
     "IComponentSite",
     "IComponentSiteBuilder",
     "utils",
+    "cast_component",
+    "query_component",
+    "LazyValue",
 ]
 
 from .__about__ import __version__  # noqa
@@ -50,3 +53,8 @@ from .interfaces import (  # noqa
     IComponentSiteBuilder,
     utils,
 )
+from .interfaces.utils import (
+    cast_component,
+    query_component,
+)
+from .lazy import LazyValue

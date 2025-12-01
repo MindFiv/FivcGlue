@@ -44,6 +44,9 @@ Source = "https://github.com/5C-Plus/fivcglue"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+fivcglue = ["fixtures/*.yml", "fixtures/*.yaml"]
+
 [tool.setuptools.dynamic]
 version = {attr = "fivcglue.__about__.__version__"}
 

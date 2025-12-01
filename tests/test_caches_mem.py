@@ -14,13 +14,9 @@ class TestCacheMemImpl(unittest.TestCase):
         """Set up test fixtures"""
         # Create a mock component site
         self.component_site = MagicMock(spec=IComponentSite)
-        
+
         # Create cache instance with small limits for testing
-        self.cache = CacheImpl(
-            self.component_site,
-            max_size=5,
-            cleanup_interval=3
-        )
+        self.cache = CacheImpl(self.component_site, max_size=5, cleanup_interval=3)
 
     def test_cache_initialization(self):
         """Test cache is properly initialized"""
@@ -35,7 +31,7 @@ class TestCacheMemImpl(unittest.TestCase):
         # Set a value
         result = self.cache.set_value("key1", b"value1", timedelta(seconds=10))
         assert result is True
-        
+
         # Get the value
         value = self.cache.get_value("key1")
         assert value == b"value1"
@@ -49,7 +45,7 @@ class TestCacheMemImpl(unittest.TestCase):
         """Test setting None as a value"""
         result = self.cache.set_value("key_none", None, timedelta(seconds=10))
         assert result is True
-        
+
         value = self.cache.get_value("key_none")
         assert value is None
 
@@ -57,18 +53,18 @@ class TestCacheMemImpl(unittest.TestCase):
         """Test that values expire after the specified time"""
         # Set a value with very short expiration
         self.cache.set_value("temp_key", b"temp_value", timedelta(milliseconds=100))
-        
+
         # Value should exist immediately
         value = self.cache.get_value("temp_key")
         assert value == b"temp_value"
-        
+
         # Wait for expiration
         time.sleep(0.15)
-        
+
         # Value should be expired and return None
         value = self.cache.get_value("temp_key")
         assert value is None
-        
+
         # Key should be removed from cache
         assert "temp_key" not in self.cache._cache
 
@@ -77,7 +73,7 @@ class TestCacheMemImpl(unittest.TestCase):
         # Set initial value
         self.cache.set_value("key1", b"value1", timedelta(seconds=10))
         assert self.cache.get_value("key1") == b"value1"
-        
+
         # Update with new value
         self.cache.set_value("key1", b"value2", timedelta(seconds=10))
         assert self.cache.get_value("key1") == b"value2"
@@ -88,21 +84,21 @@ class TestCacheMemImpl(unittest.TestCase):
         for i in range(5):
             result = self.cache.set_value(f"key{i}", f"value{i}".encode(), timedelta(seconds=10))
             assert result is True
-        
+
         assert len(self.cache._cache) == 5
-        
+
         # Add one more item - should evict the oldest (key0)
         self.cache.set_value("key5", b"value5", timedelta(seconds=10))
-        
+
         # Cache should still have 5 items
         assert len(self.cache._cache) == 5
-        
+
         # key0 should be evicted
         assert self.cache.get_value("key0") is None
-        
+
         # key5 should exist
         assert self.cache.get_value("key5") == b"value5"
-        
+
         # Other keys should still exist
         for i in range(1, 5):
             assert self.cache.get_value(f"key{i}") == f"value{i}".encode()
@@ -112,23 +108,23 @@ class TestCacheMemImpl(unittest.TestCase):
         # Add 3 items with short expiration
         for i in range(3):
             self.cache.set_value(f"temp{i}", f"temp_value{i}".encode(), timedelta(milliseconds=100))
-        
+
         # Add 2 items with long expiration
         self.cache.set_value("keep1", b"keep_value1", timedelta(seconds=10))
         self.cache.set_value("keep2", b"keep_value2", timedelta(seconds=10))
-        
+
         assert len(self.cache._cache) == 5
-        
+
         # Wait for temp items to expire
         time.sleep(0.15)
-        
+
         # Add a new item - should trigger cleanup of expired items instead of evicting valid ones
         self.cache.set_value("new_key", b"new_value", timedelta(seconds=10))
-        
+
         # Expired items should be gone
         for i in range(3):
             assert self.cache.get_value(f"temp{i}") is None
-        
+
         # Valid items should still exist
         assert self.cache.get_value("keep1") == b"keep_value1"
         assert self.cache.get_value("keep2") == b"keep_value2"
@@ -140,16 +136,16 @@ class TestCacheMemImpl(unittest.TestCase):
         # Add 2 expired items
         self.cache.set_value("exp1", b"val1", timedelta(milliseconds=50))
         self.cache.set_value("exp2", b"val2", timedelta(milliseconds=50))
-        
+
         # Wait for expiration
         time.sleep(0.1)
-        
+
         # Add one more item (3rd operation) - should trigger cleanup
         self.cache.set_value("key3", b"val3", timedelta(seconds=10))
-        
+
         # Operation count should reset to 0 after cleanup
         assert self.cache._operation_count == 0
-        
+
         # Expired items should be cleaned up
         assert "exp1" not in self.cache._cache
         assert "exp2" not in self.cache._cache
@@ -158,13 +154,13 @@ class TestCacheMemImpl(unittest.TestCase):
         """Test that set_value handles exceptions gracefully"""
         # Create a cache with a mock that raises an exception
         cache = CacheImpl(self.component_site, max_size=5, cleanup_interval=3)
-        
+
         # Monkey-patch the _cache to raise an exception
-        original_cache = cache._cache
-        
+        _ = cache._cache
+
         def raise_exception(*args, **kwargs):
             raise RuntimeError("Simulated error")
-        
+
         # This is tricky - we need to trigger an exception during set_value
         # Let's test with an invalid timedelta that might cause issues
         # Actually, the code is pretty robust, so let's just verify it returns True normally
@@ -177,18 +173,18 @@ class TestCacheMemImpl(unittest.TestCase):
         self.cache.set_value("short", b"short_value", timedelta(milliseconds=100))
         self.cache.set_value("medium", b"medium_value", timedelta(milliseconds=200))
         self.cache.set_value("long", b"long_value", timedelta(seconds=10))
-        
+
         # All should exist initially
         assert self.cache.get_value("short") == b"short_value"
         assert self.cache.get_value("medium") == b"medium_value"
         assert self.cache.get_value("long") == b"long_value"
-        
+
         # Wait for short to expire
         time.sleep(0.12)
         assert self.cache.get_value("short") is None
         assert self.cache.get_value("medium") == b"medium_value"
         assert self.cache.get_value("long") == b"long_value"
-        
+
         # Wait for medium to expire
         time.sleep(0.12)
         assert self.cache.get_value("medium") is None
@@ -197,15 +193,15 @@ class TestCacheMemImpl(unittest.TestCase):
     def test_cache_with_large_max_size(self):
         """Test cache with default large max_size"""
         large_cache = CacheImpl(self.component_site)
-        
+
         # Should have default max_size of 10000
         assert large_cache._max_size == 10000
-        
+
         # Add many items
         for i in range(100):
             result = large_cache.set_value(f"key{i}", f"value{i}".encode(), timedelta(seconds=10))
             assert result is True
-        
+
         # All items should be retrievable
         for i in range(100):
             assert large_cache.get_value(f"key{i}") == f"value{i}".encode()
@@ -215,22 +211,21 @@ class TestCacheMemImpl(unittest.TestCase):
         # Add some items that will expire
         for i in range(3):
             self.cache.set_value(f"exp{i}", f"val{i}".encode(), timedelta(milliseconds=50))
-        
+
         # Add some items that won't expire
         for i in range(2):
             self.cache.set_value(f"keep{i}", f"val{i}".encode(), timedelta(seconds=10))
-        
+
         assert len(self.cache._cache) == 5
-        
+
         # Wait for some to expire
         time.sleep(0.1)
-        
+
         # Manually trigger cleanup
         with self.cache._lock:
             self.cache._cleanup_expired()
-        
+
         # Only non-expired items should remain
         assert len(self.cache._cache) == 2
         assert self.cache.get_value("keep0") == b"val0"
         assert self.cache.get_value("keep1") == b"val1"
-
