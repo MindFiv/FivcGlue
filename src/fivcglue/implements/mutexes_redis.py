@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from fivcglue import IComponentSite
-from fivcglue.interfaces import mutexes
+from fivcglue import IComponentSite, query_component
+from fivcglue.interfaces import configs, mutexes
 
 if TYPE_CHECKING:
     from datetime import timedelta
@@ -107,39 +107,44 @@ class MutexSiteImpl(mutexes.IMutexSite):
 
     Provides a factory for creating MutexImpl instances that share
     the same Redis connection.
+
+    Configuration is read from the IConfig component's "redis" session.
+    If no config is available, defaults are used.
     """
 
     def __init__(
         self,
-        _component_site: IComponentSite,
-        host: str = "localhost",
-        port: int = 6379,
-        db: int = 0,
-        password: str | None = None,
+        component_site: IComponentSite,
         **kwargs,
     ):
         """
         Initialize Redis mutex site.
 
         Args:
-            _component_site: Component site instance (required by component system)
-            host: Redis server hostname (default: localhost)
-            port: Redis server port (default: 6379)
-            db: Redis database number (default: 0)
-            password: Redis password (default: None)
+            component_site: Component site instance (required by component system)
             **kwargs: Additional Redis client parameters
         """
-        print(f"create mutex site component of redis at {host}:{port}")  # noqa
+        # Retrieve Redis configuration from IConfig component
+        config = query_component(component_site, configs.IConfig)
+        config = config and config.get_session("redis")
+        if not config:
+            raise RuntimeError("Config component not available")
+
+        config_host = config.get_value("host") or "localhost"
+        config_port = config.get_value("port") or 6379
+        config_db = config.get_value("db") or 0
+        config_password = config.get_value("password") or ""
+        print(f"create mutex site component of redis at {config_host}:{config_port}")  # noqa
 
         try:
             import redis
 
-            # Create Redis client with provided configuration
+            # Create Redis client with retrieved configuration
             self.redis_client = redis.Redis(
-                host=host,
-                port=port,
-                db=db,
-                password=password,
+                host=config_host,
+                port=int(config_port),
+                db=int(config_db),
+                password=config_password,
                 decode_responses=False,  # Keep binary mode for compatibility
                 socket_connect_timeout=5,  # 5 second connection timeout
                 socket_timeout=5,  # 5 second operation timeout
@@ -155,7 +160,7 @@ class MutexSiteImpl(mutexes.IMutexSite):
             self.redis_client = None
             self.connected = False
         except Exception as e:
-            print(f"Warning: Failed to connect to Redis at {host}:{port}: {e}")  # noqa
+            print(f"Warning: Failed to connect to Redis at {config_host}:{config_port}: {e}")  # noqa
             self.redis_client = None
             self.connected = False
 

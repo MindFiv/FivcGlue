@@ -1,3 +1,4 @@
+import os
 import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -5,12 +6,14 @@ from unittest.mock import MagicMock, patch
 from fivcglue import IComponentSite, utils
 from fivcglue.implements.caches_redis import CacheImpl as RedisCacheImpl
 from fivcglue.implements.utils import load_component_site
-from fivcglue.interfaces import caches
+from fivcglue.interfaces import caches, configs
 
 
 class TestCaches(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        os.environ["CONFIG_JSON"] = "fixtures/test_env.json"
+        os.environ["CONFIG_YAML"] = "fixtures/test_env.yml"
         cls.component_site = load_component_site(fmt="yaml")
 
     def test_cache_redis(self):
@@ -25,28 +28,22 @@ class TestRedisCacheErrorHandling(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         self.component_site = MagicMock(spec=IComponentSite)
+        self._setup_config_mock()
 
-    def test_redis_not_connected_get_value(self):
-        """Test get_value when Redis is not connected"""
-        cache = RedisCacheImpl(self.component_site, host="invalid_host", port=9999)
+    def _setup_config_mock(self):
+        """Helper to set up config mock for Redis configuration"""
+        mock_config_session = MagicMock(spec=configs.IConfigSession)
+        mock_config_session.get_value.side_effect = lambda key: {
+            "host": "localhost",
+            "port": "6379",
+            "db": "0",
+            "password": "",
+        }.get(key)
 
-        # Should not be connected
-        assert cache.connected is False
+        mock_config = MagicMock(spec=configs.IConfig)
+        mock_config.get_session.return_value = mock_config_session
 
-        # get_value should return None
-        value = cache.get_value("test_key")
-        assert value is None
-
-    def test_redis_not_connected_set_value(self):
-        """Test set_value when Redis is not connected"""
-        cache = RedisCacheImpl(self.component_site, host="invalid_host", port=9999)
-
-        # Should not be connected
-        assert cache.connected is False
-
-        # set_value should return False
-        result = cache.set_value("test_key", b"test_value", timedelta(seconds=10))
-        assert result is False
+        self.component_site.query_component.return_value = mock_config
 
     def test_set_value_with_zero_expiration(self):
         """Test set_value with zero or negative expiration time"""

@@ -7,6 +7,8 @@
 - entries:
     - interface: fivcglue.interfaces.configs.IConfig
       name: 'Yaml'
+    - interface: fivcglue.interfaces.configs.IConfig
+      name: ''
 
   class: fivcglue.implements.configs_yamlfile.ConfigImpl
 
