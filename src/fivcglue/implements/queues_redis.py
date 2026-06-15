@@ -172,7 +172,8 @@ class QueueSiteImpl(queues.IQueueSite):
         config_host = config.get_value("host") or "localhost"
         config_port = config.get_value("port") or 6379
         config_db = config.get_value("db") or 0
-        config_password = config.get_value("password") or ""
+        config_username = config.get_value("username") or None
+        config_password = config.get_value("password") or None
         print(f"create queue site component of redis at {config_host}:{config_port}")  # noqa
 
         try:
@@ -183,10 +184,11 @@ class QueueSiteImpl(queues.IQueueSite):
                 host=config_host,
                 port=int(config_port),
                 db=int(config_db),
+                username=config_username,
                 password=config_password,
                 decode_responses=False,  # Keep binary mode for bytes compatibility
-                socket_connect_timeout=5,  # 5 second connection timeout
-                socket_timeout=5,  # 5 second operation timeout
+                socket_connect_timeout=5,  # 5 seconds connection timeout
+                socket_timeout=5,  # 5 seconds operation timeout
                 **kwargs,
             )
 
