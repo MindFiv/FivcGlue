@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, cast
 
 from fivcglue import IComponentSite, query_component
@@ -8,13 +9,15 @@ from fivcglue.interfaces import configs, mutexes
 if TYPE_CHECKING:
     from datetime import timedelta
 
+_RETRY_INTERVAL_SECONDS = 0.05
+
 
 class MutexImpl(mutexes.IMutex):
     """
     Redis-based distributed mutex implementation.
 
     Uses Redis SET command with NX (not exists) and EX (expiration) options
-    to implement a distributed lock mechanism.
+    to implement a distributed lock mechanism via redis.asyncio.
     """
 
     def __init__(self, redis_client, mutex_name: str):
@@ -22,7 +25,7 @@ class MutexImpl(mutexes.IMutex):
         Initialize a Redis mutex.
 
         Args:
-            redis_client: Redis client instance (redis.Redis or compatible)
+            redis_client: Async Redis client instance (redis.asyncio.Redis or compatible)
             mutex_name: Unique name for this mutex
         """
         self.redis_client = redis_client
@@ -33,42 +36,59 @@ class MutexImpl(mutexes.IMutex):
     def acquire(
         self,
         expire: timedelta,
-        method: str = "blocking",
+        blocking: bool = False,
+        **kwargs,
+    ) -> bool:
+        """Acquire the mutex lock (sync wrapper around acquire_async)."""
+        return asyncio.run(self.acquire_async(expire, blocking=blocking, **kwargs))
+
+    async def acquire_async(
+        self,
+        expire: timedelta,
+        blocking: bool = False,
+        **kwargs,
     ) -> bool:
         """
-        Acquire the mutex lock.
+        Acquire the mutex lock asynchronously.
 
         Args:
             expire: Lock expiration time (timedelta)
-            method: Acquisition method - "blocking" or "non-blocking"
-                   Note: Current implementation treats both as non-blocking
+            blocking: If True, retry until the lock is acquired.
+                If False, attempt once and return immediately.
+            **kwargs: Ignored; accepted for backward compatibility.
 
         Returns:
             bool: True if lock was acquired, False otherwise
         """
-        try:
-            # Use Redis SET with NX (only set if not exists) and EX (expiration in seconds)
-            # This is an atomic operation that ensures only one client can acquire the lock
-            expire_seconds = int(expire.total_seconds())
+        expire_seconds = int(expire.total_seconds())
 
-            # SET key value NX EX seconds
-            # Returns True if key was set, False if key already exists
-            result = self.redis_client.set(
-                self.lock_key,
-                self.lock_value,
-                nx=True,  # Only set if key doesn't exist
-                ex=expire_seconds,  # Set expiration time
-            )
-
-            return bool(result)
-        except Exception as e:
-            # Log error in production; for now, print and return False
-            print(f"Error acquiring mutex {self.mutex_name}: {e}")  # noqa
-            return False
+        while True:
+            try:
+                # SET key value NX EX seconds
+                # Returns True if key was set, False if key already exists
+                result = await self.redis_client.set(
+                    self.lock_key,
+                    self.lock_value,
+                    nx=True,  # Only set if key doesn't exist
+                    ex=expire_seconds,  # Set expiration time
+                )
+                if result:
+                    return True
+                if not blocking:
+                    return False
+                await asyncio.sleep(_RETRY_INTERVAL_SECONDS)
+            except Exception as e:
+                # Log error in production; for now, print and return False
+                print(f"Error acquiring mutex {self.mutex_name}: {e}")  # noqa
+                return False
 
     def release(self) -> bool:
+        """Release the mutex lock (sync wrapper around release_async)."""
+        return asyncio.run(self.release_async())
+
+    async def release_async(self) -> bool:
         """
-        Release the mutex lock.
+        Release the mutex lock asynchronously.
 
         Only releases the lock if it was acquired by this instance
         (verified by checking the lock value).
@@ -87,7 +107,7 @@ class MutexImpl(mutexes.IMutex):
             end
             """
 
-            result = self.redis_client.eval(
+            result = await self.redis_client.eval(
                 lua_script,
                 1,  # Number of keys
                 self.lock_key,  # KEYS[1]
@@ -138,9 +158,9 @@ class MutexSiteImpl(mutexes.IMutexSite):
         print(f"create mutex site component of redis at {config_host}:{config_port}")  # noqa
 
         try:
-            import redis
+            import redis.asyncio as redis
 
-            # Create Redis client with retrieved configuration
+            # Create async Redis client with retrieved configuration
             self.redis_client = redis.Redis(
                 host=config_host,
                 port=int(config_port),
@@ -154,7 +174,7 @@ class MutexSiteImpl(mutexes.IMutexSite):
             )
 
             # Test connection
-            self.redis_client.ping()
+            asyncio.run(self.redis_client.ping())
             self.connected = True
 
         except ImportError:

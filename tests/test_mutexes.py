@@ -1,6 +1,8 @@
 import unittest
 from datetime import timedelta
 
+import pytest
+
 from fivcglue import IComponent
 from fivcglue.interfaces.mutexes import IMutex, IMutexSite
 
@@ -12,15 +14,23 @@ class MockMutex(IMutex):
         self.acquired = False
         self.released = False
 
-    def acquire(self, expire: timedelta, method: str = "blocking") -> bool:
+    def acquire(self, expire: timedelta, blocking: bool = False, **kwargs) -> bool:
         """Mock acquire implementation"""
         self.acquired = True
         return True
+
+    async def acquire_async(self, expire: timedelta, blocking: bool = False, **kwargs) -> bool:
+        """Mock async acquire implementation"""
+        return self.acquire(expire, blocking=blocking, **kwargs)
 
     def release(self) -> bool:
         """Mock release implementation"""
         self.released = True
         return True
+
+    async def release_async(self) -> bool:
+        """Mock async release implementation"""
+        return self.release()
 
 
 class MockMutexSite(IMutexSite):
@@ -45,25 +55,33 @@ class TestIMutex(unittest.TestCase):
         assert isinstance(self.mutex, IComponent)
 
     def test_acquire_blocking(self):
-        """Test acquiring mutex with blocking method"""
+        """Test acquiring mutex with blocking=True"""
         expire = timedelta(seconds=30)
-        result = self.mutex.acquire(expire, method="blocking")
+        result = self.mutex.acquire(expire, blocking=True)
 
         assert result is True
         assert self.mutex.acquired is True
 
     def test_acquire_non_blocking(self):
-        """Test acquiring mutex with non-blocking method"""
+        """Test acquiring mutex with blocking=False"""
         expire = timedelta(seconds=30)
-        result = self.mutex.acquire(expire, method="non-blocking")
+        result = self.mutex.acquire(expire, blocking=False)
 
         assert result is True
         assert self.mutex.acquired is True
 
-    def test_acquire_default_method(self):
-        """Test acquiring mutex with default method"""
+    def test_acquire_default_blocking(self):
+        """Test acquiring mutex with default blocking=False"""
         expire = timedelta(seconds=30)
         result = self.mutex.acquire(expire)
+
+        assert result is True
+        assert self.mutex.acquired is True
+
+    def test_acquire_method_kwarg_compat(self):
+        """Old method=... callers should not raise TypeError"""
+        expire = timedelta(seconds=30)
+        result = self.mutex.acquire(expire, method="blocking")
 
         assert result is True
         assert self.mutex.acquired is True
@@ -88,6 +106,45 @@ class TestIMutex(unittest.TestCase):
         release_result = self.mutex.release()
         assert release_result is True
         assert self.mutex.released is True
+
+
+class TestIMutexAsync:
+    @pytest.fixture
+    def mutex(self):
+        return MockMutex()
+
+    @pytest.mark.asyncio
+    async def test_acquire_async(self, mutex):
+        expire = timedelta(seconds=30)
+        result = await mutex.acquire_async(expire, blocking=True)
+
+        assert result is True
+        assert mutex.acquired is True
+
+    @pytest.mark.asyncio
+    async def test_acquire_async_method_kwarg_compat(self, mutex):
+        expire = timedelta(seconds=30)
+        result = await mutex.acquire_async(expire, method="non-blocking")
+
+        assert result is True
+        assert mutex.acquired is True
+
+    @pytest.mark.asyncio
+    async def test_release_async(self, mutex):
+        result = await mutex.release_async()
+
+        assert result is True
+        assert mutex.released is True
+
+    @pytest.mark.asyncio
+    async def test_acquire_and_release_async(self, mutex):
+        expire = timedelta(seconds=30)
+
+        assert await mutex.acquire_async(expire) is True
+        assert mutex.acquired is True
+
+        assert await mutex.release_async() is True
+        assert mutex.released is True
 
 
 class TestIMutexSite(unittest.TestCase):
@@ -140,7 +197,7 @@ class TestMutexIntegration(unittest.TestCase):
 
         # Acquire mutex
         expire = timedelta(seconds=60)
-        acquired = mutex.acquire(expire, method="blocking")
+        acquired = mutex.acquire(expire, blocking=True)
         assert acquired is True
 
         # Release mutex

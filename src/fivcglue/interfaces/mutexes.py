@@ -33,7 +33,7 @@ class IMutex(IComponent):
         >>> from datetime import timedelta
         >>> mutex_site = RedisMutexSiteImpl(_component_site=None)
         >>> mutex = mutex_site.get_mutex("resource:123")
-        >>> if mutex.acquire(expire=timedelta(seconds=30), method="blocking"):
+        >>> if mutex.acquire(expire=timedelta(seconds=30), blocking=True):
         ...     try:
         ...         # Critical section - exclusive access to resource
         ...         process_resource()
@@ -45,7 +45,8 @@ class IMutex(IComponent):
     def acquire(
         self,
         expire: timedelta,
-        method: str = "blocking",
+        blocking: bool = False,
+        **kwargs,
     ) -> bool:
         """Attempt to acquire the mutex lock.
 
@@ -53,15 +54,35 @@ class IMutex(IComponent):
             expire: Time duration until the lock automatically expires.
                 This prevents deadlocks if the process crashes while
                 holding the lock. Must be a positive timedelta.
-            method: Acquisition method. Options:
-                - "blocking": Wait until the lock is acquired
-                - "non-blocking": Return immediately if lock cannot be acquired
-                Defaults to "blocking".
+            blocking: If True, wait until the lock is acquired. If False,
+                return immediately if the lock cannot be acquired.
+                Defaults to False.
+            **kwargs: Accepted for backward compatibility with older callers
+                that passed method=...; ignored by new implementations.
 
         Returns:
             True if the lock was successfully acquired, False otherwise.
             For blocking mode, this typically always returns True.
             For non-blocking mode, returns False if the lock is held by another process.
+        """
+
+    @abstractmethod
+    async def acquire_async(
+        self,
+        expire: timedelta,
+        blocking: bool = False,
+        **kwargs,
+    ) -> bool:
+        """Async variant of acquire.
+
+        Args:
+            expire: Time duration until the lock automatically expires.
+            blocking: If True, wait until the lock is acquired. If False,
+                return immediately if the lock cannot be acquired.
+            **kwargs: Accepted for backward compatibility; ignored.
+
+        Returns:
+            True if the lock was successfully acquired, False otherwise.
         """
 
     @abstractmethod
@@ -71,6 +92,14 @@ class IMutex(IComponent):
         Should only be called by the process that currently holds the lock.
         Releasing a lock that is not held by the current process may have
         undefined behavior depending on the implementation.
+
+        Returns:
+            True if the lock was successfully released, False otherwise.
+        """
+
+    @abstractmethod
+    async def release_async(self) -> bool:
+        """Async variant of release.
 
         Returns:
             True if the lock was successfully released, False otherwise.
