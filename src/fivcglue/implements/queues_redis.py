@@ -1,19 +1,20 @@
 """Redis-based queue implementation using pub/sub.
 
 This module provides a Redis-backed implementation of the queue interfaces.
-It uses the redis-py library to connect to a Redis server and provides
+It uses redis.asyncio to connect to a Redis server and provides
 distributed message queuing with pub/sub mechanism.
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, cast
 
 from fivcglue import IComponentSite, query_component
 from fivcglue.interfaces import configs, queues
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from datetime import timedelta
 
 
 class QueueProducerImpl(queues.IQueueProducer):
@@ -23,7 +24,7 @@ class QueueProducerImpl(queues.IQueueProducer):
     Messages are sent as bytes to the specified queue name (channel).
 
     Args:
-        redis_client: Redis client instance (redis.Redis or compatible)
+        redis_client: Async Redis client instance (redis.asyncio.Redis or compatible)
         queue_name: Name of the queue/channel to publish to
 
     Example:
@@ -36,14 +37,18 @@ class QueueProducerImpl(queues.IQueueProducer):
         """Initialize a Redis queue producer.
 
         Args:
-            redis_client: Redis client instance
+            redis_client: Async Redis client instance
             queue_name: Name of the queue/channel
         """
         self.redis_client = redis_client
         self.queue_name = queue_name
 
     def produce(self, message: bytes) -> bool:
-        """Send a message to the queue.
+        """Send a message to the queue (sync wrapper around produce_async)."""
+        return asyncio.run(self.produce_async(message))
+
+    async def produce_async(self, message: bytes) -> bool:
+        """Send a message to the queue asynchronously.
 
         Uses Redis PUBLISH command to send the message to all subscribers
         of the queue channel.
@@ -57,7 +62,7 @@ class QueueProducerImpl(queues.IQueueProducer):
         try:
             # PUBLISH returns the number of subscribers that received the message
             # We return True if publish succeeded (even if no subscribers)
-            self.redis_client.publish(self.queue_name, message)
+            await self.redis_client.publish(self.queue_name, message)
             return True
         except Exception as e:
             print(f"Warning: Failed to produce message to queue '{self.queue_name}': {e}")  # noqa
@@ -68,68 +73,58 @@ class QueueConsumerImpl(queues.IQueueConsumer):
     """Redis-based queue consumer implementation.
 
     Subscribes to a Redis channel using the SUBSCRIBE command and
-    yields messages as they arrive.
+    returns messages one at a time.
 
     Args:
-        redis_client: Redis client instance (redis.Redis or compatible)
+        redis_client: Async Redis client instance (redis.asyncio.Redis or compatible)
         queue_name: Name of the queue/channel to subscribe to
 
     Example:
         >>> consumer = QueueConsumerImpl(redis_client, "my_queue")
-        >>> for message in consumer.consume():
-        ...     print(message)
+        >>> message = consumer.consume()
     """
 
     def __init__(self, redis_client, queue_name: str):
         """Initialize a Redis queue consumer.
 
         Args:
-            redis_client: Redis client instance
+            redis_client: Async Redis client instance
             queue_name: Name of the queue/channel to subscribe to
         """
         self.redis_client = redis_client
         self.queue_name = queue_name
         self.pubsub = None
 
-    def consume(self, **kwargs) -> Generator[bytes, None, None]:
-        """Poll the queue for messages.
+    def consume(self, timeout: timedelta | None = None, **kwargs) -> bytes | None:
+        """Poll the queue for a single message (sync wrapper around consume_async)."""
+        return asyncio.run(self.consume_async(timeout=timeout, **kwargs))
 
-        Subscribes to the queue channel and yields messages as they arrive.
-        This is a blocking generator that will yield messages indefinitely
-        until the subscription is closed.
+    async def consume_async(self, timeout: timedelta | None = None, **kwargs) -> bytes | None:
+        """Poll the queue for a single message asynchronously.
 
         Args:
-            **kwargs: Additional arguments (reserved for future use)
+            timeout: Max wait duration. None means return immediately.
+            **kwargs: Reserved for backward compatibility.
 
-        Yields:
-            bytes: Message data from the queue
-
-        Example:
-            >>> for message in consumer.consume():
-            ...     print(f"Received: {message}")
+        Returns:
+            Message bytes if available, otherwise None.
         """
         try:
-            # Create a pubsub object for this consumer
-            self.pubsub = self.redis_client.pubsub()
-            self.pubsub.subscribe(self.queue_name)
+            if self.pubsub is None:
+                self.pubsub = self.redis_client.pubsub()
+                await self.pubsub.subscribe(self.queue_name)
 
-            # Iterate over messages from the subscription
-            for message in self.pubsub.listen():
-                # Filter out subscription confirmation messages
-                if message["type"] == "message":
-                    yield message["data"]
-
+            redis_timeout = 0.0 if timeout is None else timeout.total_seconds()
+            message = await self.pubsub.get_message(
+                ignore_subscribe_messages=True,
+                timeout=redis_timeout,
+            )
+            if message is None:
+                return None
+            return message["data"]
         except Exception as e:
             print(f"Warning: Error consuming from queue '{self.queue_name}': {e}")  # noqa
-        finally:
-            # Clean up subscription
-            if self.pubsub:
-                try:
-                    self.pubsub.unsubscribe(self.queue_name)
-                    self.pubsub.close()
-                except Exception as e:
-                    print(f"Warning: Error closing pubsub: {e}")  # noqa
-                self.pubsub = None
+            return None
 
 
 class QueueSiteImpl(queues.IQueueSite):
@@ -177,9 +172,9 @@ class QueueSiteImpl(queues.IQueueSite):
         print(f"create queue site component of redis at {config_host}:{config_port}")  # noqa
 
         try:
-            import redis
+            import redis.asyncio as redis
 
-            # Create Redis client with retrieved configuration
+            # Create async Redis client with retrieved configuration
             self.redis_client = redis.Redis(
                 host=config_host,
                 port=int(config_port),
@@ -193,7 +188,7 @@ class QueueSiteImpl(queues.IQueueSite):
             )
 
             # Test connection
-            self.redis_client.ping()
+            asyncio.run(self.redis_client.ping())
             self.connected = True
 
         except ImportError:

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Generator
+from typing import TYPE_CHECKING
 
 from fivcglue import IComponent
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 
 class IQueueProducer(IComponent):
@@ -13,13 +16,37 @@ class IQueueProducer(IComponent):
     def produce(self, message: bytes) -> bool:
         """Send a message to the queue."""
 
+    @abstractmethod
+    async def produce_async(self, message: bytes) -> bool:
+        """Async variant of produce."""
+
 
 class IQueueConsumer(IComponent):
     """Interface for a message queue consumer."""
 
     @abstractmethod
-    def consume(self, **kwargs) -> Generator[bytes, None, None]:
-        """Poll the queue for messages."""
+    def consume(self, timeout: timedelta | None = None, **kwargs) -> bytes | None:
+        """Poll the queue for a single message.
+
+        Args:
+            timeout: Max wait duration. None means return immediately.
+            **kwargs: Reserved for backward compatibility.
+
+        Returns:
+            Message bytes if available, otherwise None.
+        """
+
+    @abstractmethod
+    async def consume_async(self, timeout: timedelta | None = None, **kwargs) -> bytes | None:
+        """Async variant of consume.
+
+        Args:
+            timeout: Max wait duration. None means return immediately.
+            **kwargs: Reserved for backward compatibility.
+
+        Returns:
+            Message bytes if available, otherwise None.
+        """
 
 
 class IQueueSite(IComponent):
