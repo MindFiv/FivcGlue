@@ -24,7 +24,7 @@ class IMutex(IComponent):
     """Interface for a mutex lock with automatic expiration.
 
     IMutex provides distributed locking capabilities with automatic expiration
-    to prevent deadlocks. Locks can be acquired in blocking or non-blocking mode.
+    to prevent deadlocks. Locks can be acquired with an optional wait timeout.
 
     All locks must have an expiration time. If a process crashes while holding
     a lock, the lock will automatically be released after the expiration time.
@@ -33,7 +33,7 @@ class IMutex(IComponent):
         >>> from datetime import timedelta
         >>> mutex_site = RedisMutexSiteImpl(_component_site=None)
         >>> mutex = mutex_site.get_mutex("resource:123")
-        >>> if mutex.acquire(expire=timedelta(seconds=30), blocking=True):
+        >>> if mutex.acquire(expire=timedelta(seconds=30), timeout=timedelta(seconds=5)):
         ...     try:
         ...         # Critical section - exclusive access to resource
         ...         process_resource()
@@ -45,7 +45,7 @@ class IMutex(IComponent):
     def acquire(
         self,
         expire: timedelta,
-        blocking: bool = False,
+        timeout: timedelta | None = None,
         **kwargs,
     ) -> bool:
         """Attempt to acquire the mutex lock.
@@ -54,31 +54,33 @@ class IMutex(IComponent):
             expire: Time duration until the lock automatically expires.
                 This prevents deadlocks if the process crashes while
                 holding the lock. Must be a positive timedelta.
-            blocking: If True, wait until the lock is acquired. If False,
-                return immediately if the lock cannot be acquired.
-                Defaults to False.
+            timeout: How long to wait for the lock. If None, attempt once
+                and return immediately. If a timedelta, retry until the
+                lock is acquired or the timeout elapses.
             **kwargs: Accepted for backward compatibility with older callers
-                that passed method=...; ignored by new implementations.
+                that passed method=... or blocking=...; ignored by new
+                implementations.
 
         Returns:
             True if the lock was successfully acquired, False otherwise.
-            For blocking mode, this typically always returns True.
-            For non-blocking mode, returns False if the lock is held by another process.
+            When timeout is None, returns False if the lock is already held.
+            When timeout is set, returns False if the lock could not be
+            acquired before the deadline.
         """
 
     @abstractmethod
     async def acquire_async(
         self,
         expire: timedelta,
-        blocking: bool = False,
+        timeout: timedelta | None = None,
         **kwargs,
     ) -> bool:
         """Async variant of acquire.
 
         Args:
             expire: Time duration until the lock automatically expires.
-            blocking: If True, wait until the lock is acquired. If False,
-                return immediately if the lock cannot be acquired.
+            timeout: How long to wait for the lock. If None, attempt once
+                and return immediately.
             **kwargs: Accepted for backward compatibility; ignored.
 
         Returns:

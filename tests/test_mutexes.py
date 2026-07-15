@@ -14,14 +14,16 @@ class MockMutex(IMutex):
         self.acquired = False
         self.released = False
 
-    def acquire(self, expire: timedelta, blocking: bool = False, **kwargs) -> bool:
+    def acquire(self, expire: timedelta, timeout: timedelta | None = None, **kwargs) -> bool:
         """Mock acquire implementation"""
         self.acquired = True
         return True
 
-    async def acquire_async(self, expire: timedelta, blocking: bool = False, **kwargs) -> bool:
+    async def acquire_async(
+        self, expire: timedelta, timeout: timedelta | None = None, **kwargs
+    ) -> bool:
         """Mock async acquire implementation"""
-        return self.acquire(expire, blocking=blocking, **kwargs)
+        return self.acquire(expire, timeout=timeout, **kwargs)
 
     def release(self) -> bool:
         """Mock release implementation"""
@@ -54,24 +56,24 @@ class TestIMutex(unittest.TestCase):
         """Test that IMutex is a subclass of IComponent"""
         assert isinstance(self.mutex, IComponent)
 
-    def test_acquire_blocking(self):
-        """Test acquiring mutex with blocking=True"""
+    def test_acquire_with_timeout(self):
+        """Test acquiring mutex with a wait timeout"""
         expire = timedelta(seconds=30)
-        result = self.mutex.acquire(expire, blocking=True)
+        result = self.mutex.acquire(expire, timeout=timedelta(seconds=5))
 
         assert result is True
         assert self.mutex.acquired is True
 
-    def test_acquire_non_blocking(self):
-        """Test acquiring mutex with blocking=False"""
+    def test_acquire_no_wait(self):
+        """Test acquiring mutex with timeout=None (no wait)"""
         expire = timedelta(seconds=30)
-        result = self.mutex.acquire(expire, blocking=False)
+        result = self.mutex.acquire(expire, timeout=None)
 
         assert result is True
         assert self.mutex.acquired is True
 
-    def test_acquire_default_blocking(self):
-        """Test acquiring mutex with default blocking=False"""
+    def test_acquire_default_timeout(self):
+        """Test acquiring mutex with default timeout=None"""
         expire = timedelta(seconds=30)
         result = self.mutex.acquire(expire)
 
@@ -82,6 +84,14 @@ class TestIMutex(unittest.TestCase):
         """Old method=... callers should not raise TypeError"""
         expire = timedelta(seconds=30)
         result = self.mutex.acquire(expire, method="blocking")
+
+        assert result is True
+        assert self.mutex.acquired is True
+
+    def test_acquire_blocking_kwarg_compat(self):
+        """Old blocking=... callers should not raise TypeError"""
+        expire = timedelta(seconds=30)
+        result = self.mutex.acquire(expire, blocking=True)
 
         assert result is True
         assert self.mutex.acquired is True
@@ -116,7 +126,7 @@ class TestIMutexAsync:
     @pytest.mark.asyncio
     async def test_acquire_async(self, mutex):
         expire = timedelta(seconds=30)
-        result = await mutex.acquire_async(expire, blocking=True)
+        result = await mutex.acquire_async(expire, timeout=timedelta(seconds=5))
 
         assert result is True
         assert mutex.acquired is True
@@ -197,7 +207,7 @@ class TestMutexIntegration(unittest.TestCase):
 
         # Acquire mutex
         expire = timedelta(seconds=60)
-        acquired = mutex.acquire(expire, blocking=True)
+        acquired = mutex.acquire(expire, timeout=timedelta(seconds=5))
         assert acquired is True
 
         # Release mutex

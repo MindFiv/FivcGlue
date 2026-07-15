@@ -36,16 +36,16 @@ class MutexImpl(mutexes.IMutex):
     def acquire(
         self,
         expire: timedelta,
-        blocking: bool = False,
+        timeout: timedelta | None = None,
         **kwargs,
     ) -> bool:
         """Acquire the mutex lock (sync wrapper around acquire_async)."""
-        return asyncio.run(self.acquire_async(expire, blocking=blocking, **kwargs))
+        return asyncio.run(self.acquire_async(expire, timeout=timeout, **kwargs))
 
     async def acquire_async(
         self,
         expire: timedelta,
-        blocking: bool = False,
+        timeout: timedelta | None = None,
         **kwargs,
     ) -> bool:
         """
@@ -53,14 +53,16 @@ class MutexImpl(mutexes.IMutex):
 
         Args:
             expire: Lock expiration time (timedelta)
-            blocking: If True, retry until the lock is acquired.
-                If False, attempt once and return immediately.
+            timeout: How long to wait for the lock. If None, attempt once
+                and return immediately. If set, retry until acquired or deadline.
             **kwargs: Ignored; accepted for backward compatibility.
 
         Returns:
             bool: True if lock was acquired, False otherwise
         """
         expire_seconds = int(expire.total_seconds())
+        loop = asyncio.get_running_loop()
+        deadline = None if timeout is None else (loop.time() + timeout.total_seconds())
 
         while True:
             try:
@@ -74,7 +76,9 @@ class MutexImpl(mutexes.IMutex):
                 )
                 if result:
                     return True
-                if not blocking:
+                if deadline is None:
+                    return False
+                if loop.time() >= deadline:
                     return False
                 await asyncio.sleep(_RETRY_INTERVAL_SECONDS)
             except Exception as e:
